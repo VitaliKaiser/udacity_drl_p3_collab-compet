@@ -1,3 +1,4 @@
+import enum
 import random
 from abc import ABC, abstractmethod
 from collections import deque, namedtuple
@@ -7,6 +8,11 @@ import numpy as np
 import torch
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+
+class Types(enum.Enum):
+    VANILLA_REPLAY = enum.auto()
+    LABER = enum.auto()
 
 
 class Memory(ABC):

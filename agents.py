@@ -7,7 +7,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
-from matplotlib.pyplot import axis
 from ray import tune
 
 import memory as mem
@@ -64,15 +63,14 @@ class Agent(ABC):
         return {}
 
 
-def soft_update(local_model, target_model, tau):
+def soft_update(local_model, target_model, tau: float):
     """Soft update model parameters.
     θ_target = τ*θ_local + (1 - τ)*θ_target
 
-    Params
-    ======
-        local_model (PyTorch model): weights will be copied from
-        target_model (PyTorch model): weights will be copied to
-        tau (float): interpolation parameter
+    Args:
+        local_model: weights will be copied from
+        target_model: weights will be copied to
+        tau: interpolation parameter
     """
     for target_param, local_param in zip(
         target_model.parameters(), local_model.parameters()
@@ -90,7 +88,8 @@ class Random(Agent):
         self.action_size = action_size
 
     def act(self, state):
-        return np.random.randint(self.action_size)
+        batch_size = state.shape[0]
+        return np.random.randint(self.action_size, size=batch_size)
 
     def step(self, state, action, reward, next_state, done) -> None:
         pass
@@ -104,7 +103,8 @@ class RandomContinues(Agent):
         self.action_size = action_size
 
     def act(self, state):
-        return np.random.uniform(-1.0, 1.0, self.action_size)
+        batch_size = state.shape[0]
+        return np.random.uniform(-1.0, 1.0, (batch_size, self.action_size))
 
     def step(self, state, action, reward, next_state, done) -> None:
         pass
@@ -208,15 +208,7 @@ class DQN(Agent):
             return random.choice(np.arange(self.action_size))
 
     def learn(self, states, actions, rewards, next_states, dones) -> None:
-        """Update value parameters using given batch of experience tuples.
-
-        Args:
-            states
-            actions
-            rewards
-            next_states
-            dones
-        """
+        """Update value parameters using given batch of experience tuples."""
 
         target_next_actions = (
             self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)
@@ -255,6 +247,7 @@ class DDPG(Agent):
         buffer_size: int = int(1e5),
         batch_size: int = 128,
         add_noise=True,
+        memory_type=mem.Types.LABER,
     ):
 
         self.learn_every_step = hpara["learn_every_step"]
@@ -304,14 +297,16 @@ class DDPG(Agent):
         )
 
         # Replay memory
-        self.memory = mem.LaBER(
-            buffer_size,
-            batch_size,
-            seed,
-            batch_size_multiplicator=4,
-            critic=self.critic_local,
-        )
-        # self.memory = mem.ReplayBuffer(buffer_size, batch_size, seed)
+        if memory_type == mem.Types.LABER:
+            self.memory = mem.LaBER(
+                buffer_size,
+                batch_size,
+                seed,
+                batch_size_multiplicator=4,
+                critic=self.critic_local,
+            )
+        else:
+            self.memory = mem.ReplayBuffer(buffer_size, batch_size, seed)
 
     @staticmethod
     def hyperparamter_space():
@@ -323,13 +318,13 @@ class DDPG(Agent):
             "lr_actor": learning rate for the actor optimizer
             "lr_critic": learning rate for critic optimizer
             "weight_decay_critic": weight decay for critic optimizer
-            "noise_sigma":
-            "noise_theta":
-            "noise_level_start":
-            "noise_level_range":
-            "noise_level_decay":
-            "learn_every_step":
-            "learn_steps":
+            "noise_sigma": Sigma parameter of the Ornstein-Uhlenbeck for noise generation.
+            "noise_theta": Theta parameter of the Ornstein-Uhlenbeck for noise generation.
+            "noise_level_start": Start value of the noise level.
+            "noise_level_range": How big is the range between the noise level in the start and end of the training.
+            "noise_level_decay": How fast should the noise decay.
+            "learn_every_step": Executes learning only every X steps.
+            "learn_steps": How many batches should be sampled in every learn step.
         """
 
         return {
@@ -383,13 +378,6 @@ class DDPG(Agent):
         where:
             actor_target(state) -> action
             critic_target(state, action) -> Q-value
-
-        Args:
-            states
-            actions
-            rewards
-            next_states
-            dones
         """
 
         # ---------------------------- update critic ---------------------------- #
