@@ -114,6 +114,7 @@ hpara = {
     "noise_level_decay": 0.99, 
 }
 ```
+Both actor and critic consist of 3 layers with 200 units in the first hidden layer and and 100 and second one, both activated by a RELU.
 
 ### Fixing(?) Ornstein-Uhlenbeck process
 I did take the code for the Ornstein-Uhlenbeck process from the Udacity repo. But it seems to be wrong: The action space is in all continues environments between -1.0 and 1.0. But the noise created by the code is only between 0.0 and 1.0. 

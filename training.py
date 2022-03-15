@@ -133,26 +133,25 @@ def train(
                 )
 
             else:  # If there is only one agent things can be displayed "easier".
-                score = score[0]
                 scores_window.append(score)
                 sliding_mean = np.mean(scores_window)
                 pbar.set_postfix(
                     {
-                        "score": score,
+                        "score": score[0],
                         "sliding_mean": sliding_mean,
                         "ep_length": ep_length,
                     }
                 )
 
             if tensorboard is not None:
-
+                tensorboard.add_scalar("sliding_mean", sliding_mean, i)
                 if score.shape[0] > 1:
                     tensorboard.add_scalar("max_score", scores[SlidingScoreMode.MAX], i)
                     tensorboard.add_scalar("min_score", scores[SlidingScoreMode.MIN], i)
                     tensorboard.add_scalar(
                         "avg_score", scores[SlidingScoreMode.MEAN], i
                     )
-                    tensorboard.add_scalar("sliding_mean", sliding_mean, i)
+
                 else:
                     tensorboard.add_scalar("score", score, i)
 
